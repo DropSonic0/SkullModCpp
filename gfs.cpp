@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "gfs.h"
 #include <stdexcept>
 #include <fstream>
@@ -48,7 +49,7 @@ void append_byteswapped(std::vector<unsigned char>& buffer, T value) {
 
 GFSEdit::GFSEdit(const fs::path path) : gfs_path(path) {
     hFile = CreateFile(
-        path.string().c_str(),
+        path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
         0,
         NULL,
@@ -62,7 +63,7 @@ GFSEdit::GFSEdit(const fs::path path) : gfs_path(path) {
     }
 
     std::vector<unsigned char> meta_buffer(HEADER_SIZE);
-    if (!ReadFile(hFile, meta_buffer.data(), meta_buffer.capacity(), NULL, NULL)) {
+    if (!ReadFile(hFile, meta_buffer.data(), (DWORD)meta_buffer.capacity(), NULL, NULL)) {
         throw std::runtime_error("Failed to read header: " + gfs_path.string());
     }
     unsigned char* ptr = meta_buffer.data();
@@ -180,7 +181,7 @@ void GFSEdit::extract_file(const std::string& relative_path_in_archive, const fs
     fs::create_directories(output_path.parent_path());
 
     HANDLE ext_FILE = CreateFile(
-        output_path.string().c_str(),
+        output_path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
         0,
         NULL,
@@ -195,7 +196,9 @@ void GFSEdit::extract_file(const std::string& relative_path_in_archive, const fs
 
 
 
-    if (!SetFilePointer(hFile, header.data_offset + it->data_offset, NULL, FILE_BEGIN)) {
+    LARGE_INTEGER liOffset;
+    liOffset.QuadPart = header.data_offset + it->data_offset;
+    if (!SetFilePointerEx(hFile, liOffset, NULL, FILE_BEGIN)) {
         throw std::runtime_error("Failed to set file pointer in archive");
     }
 
@@ -256,7 +259,7 @@ void GFSEdit::commit_changes() {
     try {
         uint32_t old_offset = header.data_offset;
         Temp_hFile = CreateFile(
-            temp_path.string().c_str(),
+            temp_path.c_str(),
             GENERIC_READ | GENERIC_WRITE,
             0,
             NULL,
@@ -315,13 +318,14 @@ void GFSEdit::commit_changes() {
         std::memcpy(buffer.data() + ptr, FILE_VERSION.data(), FILE_VERSION.size());
         ptr += FILE_VERSION.size();
         std::memcpy(buffer.data() + ptr, &BE_count_of_files, sizeof(BE_count_of_files));
-        if (!WriteFile(Temp_hFile, buffer.data(), buffer.size(), NULL, NULL)) {
+        if (!WriteFile(Temp_hFile, buffer.data(), (DWORD)buffer.size(), NULL, NULL)) {
             throw std::runtime_error("Failed to write for: " + temp_path.string());
         }
         buffer.clear();
         size_t i = 0;
-        DWORD dwPos = SetFilePointer(hFile, old_offset, NULL, FILE_BEGIN);
-        if (dwPos == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+        LARGE_INTEGER liOldOffset;
+        liOldOffset.QuadPart = old_offset;
+        if (!SetFilePointerEx(hFile, liOldOffset, NULL, FILE_BEGIN)) {
             throw std::runtime_error("Failed to set file pointer: " + gfs_path.string());
         }
 
@@ -348,16 +352,17 @@ void GFSEdit::commit_changes() {
 
 
             buffer.resize(total_size);
-            dwPos = SetFilePointer(hFile, current_offset + old_offset, NULL, FILE_BEGIN);
-            if (dwPos == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+            LARGE_INTEGER liCurrent;
+            liCurrent.QuadPart = current_offset + old_offset;
+            if (!SetFilePointerEx(hFile, liCurrent, NULL, FILE_BEGIN)) {
                 throw std::runtime_error("Failed to set file pointer: " + gfs_path.string());
             }
 
-            if (!ReadFile(hFile, buffer.data(), buffer.size(), NULL, NULL)) {
+            if (!ReadFile(hFile, buffer.data(), (DWORD)buffer.size(), NULL, NULL)) {
                 throw std::runtime_error("Failed to read File Data: " + gfs_path.string());
             }
 
-            if (!WriteFile(Temp_hFile, buffer.data(), buffer.size(), NULL, NULL)) {
+            if (!WriteFile(Temp_hFile, buffer.data(), (DWORD)buffer.size(), NULL, NULL)) {
                 throw std::runtime_error("Failed to write File Data: " + temp_path.string());
             }
 
@@ -366,10 +371,9 @@ void GFSEdit::commit_changes() {
             buffer.clear();
         }
         buffer.clear();
-        dwPos = SetFilePointer(hFile, 0, NULL, FILE_END);
         for (const auto& change : pending_changes) {
             HANDLE change_hFile = CreateFile(
-                change.source_path.string().c_str(),
+                change.source_path.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
                 0,
                 NULL,
@@ -387,20 +391,23 @@ void GFSEdit::commit_changes() {
                 throw std::runtime_error("File too big: " + change.source_path.string());
             }
             buffer.resize(change_file_size);
-            if (!ReadFile(change_hFile, buffer.data(), buffer.size(), NULL, NULL)) {
+            if (!ReadFile(change_hFile, buffer.data(), (DWORD)buffer.size(), NULL, NULL)) {
                 throw std::runtime_error("Failed to read File Data: " + gfs_path.string());
             }
 
-            if (!WriteFile(Temp_hFile, buffer.data(), buffer.size(), NULL, NULL)) {
+            if (!WriteFile(Temp_hFile, buffer.data(), (DWORD)buffer.size(), NULL, NULL)) {
                 throw std::runtime_error("Failed to write File Data: " + temp_path.string());
             }
-            dwPos = SetFilePointer(hFile, 0, NULL, FILE_END);
+            LARGE_INTEGER liEndPos;
+            if (!SetFilePointerEx(Temp_hFile, { 0 }, &liEndPos, FILE_END)) {
+                throw std::runtime_error("Failed to get file pointer");
+            }
             buffer.clear();
             CloseHandle(change_hFile);
             files_meta_data.emplace_back(FileMetaData{
                  change.relative_path,
                  change_file_size,
-                 dwPos - change_file_size - header.data_offset
+                 (uint64_t)liEndPos.QuadPart - change_file_size - header.data_offset
                 });
         }
 
@@ -410,7 +417,7 @@ void GFSEdit::commit_changes() {
         fs::rename(temp_path, gfs_path);
 
         hFile = CreateFile(
-            gfs_path.string().c_str(),
+            gfs_path.c_str(),
             GENERIC_READ | GENERIC_WRITE,
             0,
             NULL,
@@ -436,16 +443,16 @@ void GFSUnpacker::operator()(const std::filesystem::path& filetounpackcs) {
     std::filesystem::path filetounpack = filetounpackcs;
     unsigned __int64 number_of_files{ 0 };
     unsigned int offset_to_filedata{ 0 };
-    FILE* fGFSMetaInfo = fopen(filetounpack.string().c_str(), "rb");
-    FILE* fGFSFileData = fopen(filetounpack.string().c_str(), "rb");
+    FILE* fGFSMetaInfo = _wfopen(filetounpack.c_str(), L"rb");
+    FILE* fGFSFileData = _wfopen(filetounpack.c_str(), L"rb");
     std::fread(&offset_to_filedata, sizeof offset_to_filedata, 1, fGFSMetaInfo);
     offset_to_filedata = compat::byteswap((uint32_t)offset_to_filedata);
     std::fseek(fGFSMetaInfo, 0x2B, SEEK_SET);
     std::fread(&number_of_files, sizeof number_of_files, 1, fGFSMetaInfo);
     number_of_files = compat::byteswap((uint64_t)number_of_files);
     std::fseek(fGFSMetaInfo, 0x33, SEEK_SET);
-    int Files_Lenght{ 0 };
-    for (int i{ 0 }; i < number_of_files; i++) {
+    uint64_t Files_Lenght{ 0 };
+    for (uint64_t i{ 0 }; i < number_of_files; i++) {
         MetaInfo CurrentFile;
 
         std::fread(&CurrentFile.File_Path_Lenght, 0x8, 1, fGFSMetaInfo);
@@ -488,8 +495,8 @@ void GFSPacker::operator()(const std::filesystem::path& filestopackcs) {
 
     pathGFS = filestopackcs.parent_path() / filestopackcs.filename();
     pathGFS.replace_extension(".gfs");
-    FILE* fGFSFileData = fopen(pathGFS.string().c_str(), "ab");
-    FILE* fGFSMetaInfo = fopen(pathGFS.string().c_str(), "rb+");
+    FILE* fGFSFileData = _wfopen(pathGFS.c_str(), L"ab");
+    FILE* fGFSMetaInfo = _wfopen(pathGFS.c_str(), L"rb+");
     std::fseek(fGFSMetaInfo, 0x33, SEEK_SET);
     for (const std::filesystem::directory_entry& dir_entry : std::filesystem::recursive_directory_iterator(filestopackcs)) {
         if (dir_entry.is_regular_file()) {
@@ -498,15 +505,15 @@ void GFSPacker::operator()(const std::filesystem::path& filestopackcs) {
             std::string pathString = dir_entry.path().generic_string().erase(0, filestopackcs.generic_string().size() + 1);
             std::vector<unsigned char> i_file_path(pathString.begin(), pathString.end());
             uint64_t i_file_path_lenght = compat::byteswap(uint64_t(i_file_path.size()));
-            FILE* CurrentFile = fopen(dir_entry.path().string().c_str(), "rb");
+            FILE* CurrentFile = _wfopen(dir_entry.path().c_str(), L"rb");
             std::fseek(CurrentFile, 0, SEEK_END); // seek to end
-            const uint64_t filesize = std::ftell(CurrentFile);
+            const uint64_t filesize = _ftelli64(CurrentFile);
             uint64_t FileSize = compat::byteswap(uint64_t(filesize));
 
             std::fseek(CurrentFile, 0, SEEK_SET);
 
             std::vector<unsigned char> buffer(filesize);
-            std::fread(reinterpret_cast<char*>(buffer.data()), filesize, 1, CurrentFile);
+            std::fread(reinterpret_cast<char*>(buffer.data()), (size_t)filesize, 1, CurrentFile);
 
             std::fclose(CurrentFile);
 
@@ -518,9 +525,9 @@ void GFSPacker::operator()(const std::filesystem::path& filestopackcs) {
 
             std::fwrite(&file_aligned, 4, 1, fGFSMetaInfo);
 
-            std::fwrite(reinterpret_cast<char*>(buffer.data()), filesize, 1, fGFSFileData);
+            std::fwrite(reinterpret_cast<char*>(buffer.data()), (size_t)filesize, 1, fGFSFileData);
 
-            offset_to_filedata += (20 + i_file_path.size());
+            offset_to_filedata += (uint32_t)(20 + i_file_path.size());
         }
     } // End For
     std::fseek(fGFSMetaInfo, 0, SEEK_SET);

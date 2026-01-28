@@ -14,14 +14,12 @@
 #include <cstdlib>
 #include <intrin.h>
 
-#if defined(__has_include)
-  #if __has_include(<bit>)
-    #include <bit>
-  #endif
+#if defined(_MSVC_LANG) && _MSVC_LANG >= 202302L
+#include <bit>
 #endif
 
 namespace compat {
-#if defined(__cpp_lib_byteswap)
+#if defined(_MSVC_LANG) && _MSVC_LANG >= 202302L
     using std::byteswap;
 #else
     template <typename T>
