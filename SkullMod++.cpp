@@ -5,30 +5,22 @@
 #include <string.h>
 #include <string>
 #include "gfs.h"
-#include <filesystem>
 
 //-----------------------
 
-namespace fs = std::filesystem;
-
 int main(int argc, char* argv[])
 {
-    std::cout << R"(
-   _____ _          _ _ __  __           _  _____           
-  / ____| |        | | |  \/  |         | |/ ____|_     _   
- | (___ | | ___   _| | | \  / | ___   __| | |   _| |_ _| |_ 
-  \___ \| |/ / | | | | | |\/| |/ _ \ / _` | |  |_   _|_   _|
-  ____) |   <| |_| | | | |  | | (_) | (_| | |____|_|   |_|  
- |_____/|_|\_\\__,_|_|_|_|  |_|\___/ \__,_|\_____|                                                                                             
-)" << std::endl;
-
-    std::cout << "Version: 0.6" << "\n";
-    std::cout << "Original program made by 0xFAIL" << "\n";
-    std::cout << "The C++ version is made by ImpDi" << "\n";
-    std::cout << '\n';
+    printf("   _____   _              _   _   __  __               _                 \n");
+    printf("  / ____| | |            | | | | |  \\/  |             | |    _       _   \n");
+    printf(" | (___   | | __  _   _  | | | | | \\  / |   ___     __| |  _| |_   _| |_ \n");
+    printf("  \\___ \\  | |/ / | | | | | | | | | |\\/| |  / _ \\   / _` | |_   _| |_   _|\n");
+    printf("  ____) | |   <  | |_| | | | | | | |  | | | (_) | | (_| |   |_|     |_|  \n");
+    printf(" |_____/  |_|\\_\\  \\__,_| |_| |_| |_|  |_|  \\___/   \\____|                \n\n");
+    printf("Version: 0.3 \n");
+    printf("Original program made by 0xFAIL\n");
+    printf("The C++ version is made by ImpDi\n\n");
     if (argc == 1) {
         std::cout << "There are no files" << '\n';
-        system("pause");
         return 0;
     }
     GFSUnpacker GFSUnpack;
@@ -37,14 +29,17 @@ int main(int argc, char* argv[])
         std::filesystem::path fileread = argv[i];
         std::cout << "File Read Path:" << fileread << '\n';
         //GFS gfs(fileread);
-
+        
         if (fileread.extension() == "") {
-            std::cout << "File Write Path:" << fileread.replace_extension(".gfs") << '\n';
             GFSpack(fileread);
         }
         else {
-            std::cout << "File Write Path:" << fileread.replace_extension("") << '\n';
             GFSUnpack(fileread);
         }
     } //for
 } //main
+
+int test() {
+	GFSPacker GFSPack;
+	GFSPack("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Skullgirls\\data01\\core");
+}

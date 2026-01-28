@@ -10,6 +10,39 @@
 #include <future>
 #include <memory>
 #include <windows.h>
+#include <type_traits>
+#include <cstdlib>
+#include <intrin.h>
+
+#if defined(_MSVC_LANG) && _MSVC_LANG >= 202302L
+#include <bit>
+#endif
+
+namespace compat {
+#if defined(_MSVC_LANG) && _MSVC_LANG >= 202302L
+    using std::byteswap;
+#else
+    template <typename T>
+    inline T byteswap(T value) noexcept {
+        static_assert(std::is_integral_v<T>, "byteswap requires an integral type.");
+        if constexpr (sizeof(T) == 1) {
+            return value;
+        }
+        else if constexpr (sizeof(T) == 2) {
+            return static_cast<T>(_byteswap_ushort(static_cast<unsigned short>(value)));
+        }
+        else if constexpr (sizeof(T) == 4) {
+            return static_cast<T>(_byteswap_ulong(static_cast<unsigned long>(value)));
+        }
+        else if constexpr (sizeof(T) == 8) {
+            return static_cast<T>(_byteswap_uint64(static_cast<unsigned __int64>(value)));
+        }
+        else {
+            return value;
+        }
+    }
+#endif
+}
 
 namespace fs = std::filesystem;
 
@@ -66,11 +99,11 @@ public:
 
 class GFSPacker {
 private:
-    __int64 file_identifier_length = std::byteswap(uint64_t(20));
+    __int64 file_identifier_length = compat::byteswap(uint64_t(20));
     char file_identifier[20]{ 'R', 'e', 'v', 'e' ,'r' , 'g', 'e', ' ', 'P', 'a', 'c', 'k', 'a', 'g', 'e', ' ', 'F', 'i', 'l', 'e' }; //Reverge Package File
-    __int64 file_version_length = std::byteswap(uint64_t(3));
+    __int64 file_version_length = compat::byteswap(uint64_t(3));
     char file_version[3]{ '1', '.', '1' }; //Reverge Package File
-    unsigned int file_aligned = std::byteswap(uint32_t(0x1));
+    unsigned int file_aligned = compat::byteswap(uint32_t(0x1));
 public:
     void operator()(const std::filesystem::path& filestopackcs);
 };
