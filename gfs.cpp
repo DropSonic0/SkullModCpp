@@ -4,7 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <io.h>
-#include <bit>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
@@ -40,7 +40,7 @@ uint64_t readBufferChar_to_UnInt64(const unsigned char* buffer, size_t Start = 0
 }
 template<typename T>
 void append_byteswapped(std::vector<unsigned char>& buffer, T value) {
-    T swapped = std::byteswap(value);
+    T swapped = compat::byteswap(value);
     size_t old_size = buffer.size();
     buffer.resize(old_size + sizeof(T));
     std::memcpy(buffer.data() + old_size, &swapped, sizeof(T));
@@ -299,10 +299,10 @@ void GFSEdit::commit_changes() {
         }
         header.data_offset = buffer.size();
         header.count_of_files = files_meta_data.size() + pending_changes.size();
-        uint32_t BE_data_offset = std::byteswap(uint32_t(header.data_offset));
-        uint64_t BE_count_of_files = std::byteswap(uint64_t(header.count_of_files));
-        uint64_t BE_file_indidentifier_size = std::byteswap(uint64_t(FILE_IDENTIFIER.size()));
-        uint64_t BE_file_version_size = std::byteswap(uint64_t(FILE_VERSION.size()));
+        uint32_t BE_data_offset = compat::byteswap(uint32_t(header.data_offset));
+        uint64_t BE_count_of_files = compat::byteswap(uint64_t(header.count_of_files));
+        uint64_t BE_file_indidentifier_size = compat::byteswap(uint64_t(FILE_IDENTIFIER.size()));
+        uint64_t BE_file_version_size = compat::byteswap(uint64_t(FILE_VERSION.size()));
         size_t ptr{ 0 };
         std::memcpy(buffer.data() + ptr, &BE_data_offset, sizeof(BE_data_offset));
         ptr += sizeof(BE_data_offset);
@@ -439,23 +439,23 @@ void GFSUnpacker::operator()(const std::filesystem::path& filetounpackcs) {
     FILE* fGFSMetaInfo = fopen(filetounpack.string().c_str(), "rb");
     FILE* fGFSFileData = fopen(filetounpack.string().c_str(), "rb");
     std::fread(&offset_to_filedata, sizeof offset_to_filedata, 1, fGFSMetaInfo);
-    offset_to_filedata = std::byteswap((uint32_t)offset_to_filedata);
+    offset_to_filedata = compat::byteswap((uint32_t)offset_to_filedata);
     std::fseek(fGFSMetaInfo, 0x2B, SEEK_SET);
     std::fread(&number_of_files, sizeof number_of_files, 1, fGFSMetaInfo);
-    number_of_files = std::byteswap((uint64_t)number_of_files);
+    number_of_files = compat::byteswap((uint64_t)number_of_files);
     std::fseek(fGFSMetaInfo, 0x33, SEEK_SET);
     int Files_Lenght{ 0 };
     for (int i{ 0 }; i < number_of_files; i++) {
         MetaInfo CurrentFile;
 
         std::fread(&CurrentFile.File_Path_Lenght, 0x8, 1, fGFSMetaInfo);
-        CurrentFile.File_Path_Lenght = std::byteswap((uint64_t)CurrentFile.File_Path_Lenght);
+        CurrentFile.File_Path_Lenght = compat::byteswap((uint64_t)CurrentFile.File_Path_Lenght);
 
         CurrentFile.File_Path.resize(CurrentFile.File_Path_Lenght);
         std::fread(reinterpret_cast<char*>(CurrentFile.File_Path.data()), CurrentFile.File_Path_Lenght, 1, fGFSMetaInfo);
 
         std::fread(&CurrentFile.File_Lenght, 0x8, 1, fGFSMetaInfo);
-        CurrentFile.File_Lenght = std::byteswap((uint64_t)CurrentFile.File_Lenght);
+        CurrentFile.File_Lenght = compat::byteswap((uint64_t)CurrentFile.File_Lenght);
 
         std::fseek(fGFSMetaInfo, 0x4, SEEK_CUR);
 
@@ -497,11 +497,11 @@ void GFSPacker::operator()(const std::filesystem::path& filestopackcs) {
             numbers_of_file++;
             std::string pathString = dir_entry.path().generic_string().erase(0, filestopackcs.generic_string().size() + 1);
             std::vector<unsigned char> i_file_path(pathString.begin(), pathString.end());
-            uint64_t i_file_path_lenght = std::byteswap(uint64_t(i_file_path.size()));
+            uint64_t i_file_path_lenght = compat::byteswap(uint64_t(i_file_path.size()));
             FILE* CurrentFile = fopen(dir_entry.path().string().c_str(), "rb");
             std::fseek(CurrentFile, 0, SEEK_END); // seek to end
             const uint64_t filesize = std::ftell(CurrentFile);
-            uint64_t FileSize = std::byteswap(uint64_t(filesize));
+            uint64_t FileSize = compat::byteswap(uint64_t(filesize));
 
             std::fseek(CurrentFile, 0, SEEK_SET);
 
@@ -524,8 +524,8 @@ void GFSPacker::operator()(const std::filesystem::path& filestopackcs) {
         }
     } // End For
     std::fseek(fGFSMetaInfo, 0, SEEK_SET);
-    offset_to_filedata = std::byteswap(uint32_t(offset_to_filedata));
-    numbers_of_file = std::byteswap(uint64_t(numbers_of_file));
+    offset_to_filedata = compat::byteswap(uint32_t(offset_to_filedata));
+    numbers_of_file = compat::byteswap(uint64_t(numbers_of_file));
     std::fwrite(&offset_to_filedata, 0x4, 1, fGFSMetaInfo);
     std::fwrite(&file_identifier_length, 0x8, 1, fGFSMetaInfo);
     std::fwrite(file_identifier, 20, 1, fGFSMetaInfo);
