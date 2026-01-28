@@ -12,13 +12,16 @@
 #include <windows.h>
 #include <type_traits>
 #include <cstdlib>
+#include <intrin.h>
 
-#if (defined(_MSVC_LANG) && _MSVC_LANG >= 202302L) || (defined(__cplusplus) && __cplusplus >= 202302L)
-#include <bit>
+#if defined(__has_include)
+  #if __has_include(<bit>)
+    #include <bit>
+  #endif
 #endif
 
 namespace compat {
-#if (defined(_MSVC_LANG) && _MSVC_LANG >= 202302L) || (defined(__cplusplus) && __cplusplus >= 202302L)
+#if defined(__cpp_lib_byteswap)
     using std::byteswap;
 #else
     template <typename T>
