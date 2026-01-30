@@ -488,70 +488,68 @@ void GFSUnpacker::operator()(const std::filesystem::path& filetounpackcs) {
 
 void GFSPacker::operator()(const std::filesystem::path& filestopackcs) {
 
-    unsigned __int64 numbers_of_file{ 0 };
+    struct FileInfo {
+        std::filesystem::path full_path;
+        std::string relative_path;
+        uint64_t size;
+    };
+    std::vector<FileInfo> files;
     unsigned int offset_to_filedata{ 0x33 };
 
-    std::filesystem::path pathGFS{};
-
-    pathGFS = filestopackcs.parent_path() / filestopackcs.filename();
-    pathGFS.replace_extension(".gfs");
-    FILE* fGFSFileData = _wfopen(pathGFS.c_str(), L"ab");
-    FILE* fGFSMetaInfo = _wfopen(pathGFS.c_str(), L"rb+");
-    _fseeki64(fGFSMetaInfo, (__int64)(0x33), SEEK_SET);
-    for (const std::filesystem::directory_entry& dir_entry : std::filesystem::recursive_directory_iterator(filestopackcs)) {
+    for (const auto& dir_entry : std::filesystem::recursive_directory_iterator(filestopackcs)) {
         if (dir_entry.is_regular_file()) {
-
-            numbers_of_file++;
             std::string pathString = dir_entry.path().generic_string().erase(0, filestopackcs.generic_string().size() + 1);
-            std::vector<unsigned char> i_file_path(pathString.begin(), pathString.end());
-            uint64_t i_file_path_lenght = compat::byteswap(uint64_t(i_file_path.size()));
-            FILE* CurrentFile = _wfopen(dir_entry.path().c_str(), L"rb");
-            _fseeki64(CurrentFile, (__int64)(0), SEEK_END); // seek to end
-            const uint64_t filesize = _ftelli64(CurrentFile);
-            uint64_t FileSize = compat::byteswap(uint64_t(filesize));
-
-            _fseeki64(CurrentFile, (__int64)(0), SEEK_SET);
-
-            std::vector<unsigned char> buffer(filesize);
-            std::fread(reinterpret_cast<char*>(buffer.data()), (size_t)filesize, 1, CurrentFile);
-
-            std::fclose(CurrentFile);
-
-            std::fwrite(&i_file_path_lenght, 8, 1, fGFSMetaInfo);
-
-            std::fwrite(reinterpret_cast<char*>(i_file_path.data()), i_file_path.size(), 1, fGFSMetaInfo);
-
-            std::fwrite(&FileSize, 8, 1, fGFSMetaInfo);
-
-            std::fwrite(&file_aligned, 4, 1, fGFSMetaInfo);
-
-            std::fwrite(reinterpret_cast<char*>(buffer.data()), (size_t)filesize, 1, fGFSFileData);
-
-            offset_to_filedata += (uint32_t)(20 + i_file_path.size());
+            uint64_t filesize = std::filesystem::file_size(dir_entry.path());
+            files.push_back({ dir_entry.path(), pathString, filesize });
+            offset_to_filedata += (uint32_t)(8 + pathString.size() + 8 + 4);
         }
-    } // End For
-    _fseeki64(fGFSMetaInfo, (__int64)(0), SEEK_SET);
-    offset_to_filedata = compat::byteswap(uint32_t(offset_to_filedata));
-    numbers_of_file = compat::byteswap(uint64_t(numbers_of_file));
-    std::fwrite(&offset_to_filedata, 0x4, 1, fGFSMetaInfo);
-    std::fwrite(&file_identifier_length, 0x8, 1, fGFSMetaInfo);
-    std::fwrite(file_identifier, 20, 1, fGFSMetaInfo);
-    std::fwrite(&file_version_length, 0x8, 1, fGFSMetaInfo);
-    std::fwrite(file_version, 0x3, 1, fGFSMetaInfo);
-    std::fwrite(&numbers_of_file, 0x8, 1, fGFSMetaInfo);
+    }
+
+    std::filesystem::path pathGFS = filestopackcs.parent_path() / filestopackcs.filename();
+    pathGFS.replace_extension(".gfs");
+
+    FILE* fGFS = _wfopen(pathGFS.c_str(), L"wb");
+    if (!fGFS) return;
+
+    // Write placeholder header
+    std::vector<char> placeholder(0x33, 0);
+    std::fwrite(placeholder.data(), 1, placeholder.size(), fGFS);
+
+    // Write metadata entries
+    for (const auto& file : files) {
+        uint64_t i_file_path_lenght = compat::byteswap(uint64_t(file.relative_path.size()));
+        uint64_t FileSize = compat::byteswap(uint64_t(file.size));
+
+        std::fwrite(&i_file_path_lenght, 8, 1, fGFS);
+        std::fwrite(file.relative_path.data(), file.relative_path.size(), 1, fGFS);
+        std::fwrite(&FileSize, 8, 1, fGFS);
+        std::fwrite(&file_aligned, 4, 1, fGFS);
+    }
+
+    // Write file data
+    for (const auto& file : files) {
+        FILE* CurrentFile = _wfopen(file.full_path.c_str(), L"rb");
+        if (CurrentFile) {
+            if (file.size > 0) {
+                std::vector<unsigned char> buffer(file.size);
+                std::fread(reinterpret_cast<char*>(buffer.data()), (size_t)file.size, 1, CurrentFile);
+                std::fwrite(reinterpret_cast<char*>(buffer.data()), (size_t)file.size, 1, fGFS);
+            }
+            std::fclose(CurrentFile);
+        }
+    }
+
+    // Finalize header
+    _fseeki64(fGFS, (__int64)(0), SEEK_SET);
+    uint32_t be_offset_to_filedata = compat::byteswap(uint32_t(offset_to_filedata));
+    uint64_t be_numbers_of_file = compat::byteswap(uint64_t(files.size()));
+
+    std::fwrite(&be_offset_to_filedata, 0x4, 1, fGFS);
+    std::fwrite(&file_identifier_length, 0x8, 1, fGFS);
+    std::fwrite(file_identifier, 20, 1, fGFS);
+    std::fwrite(&file_version_length, 0x8, 1, fGFS);
+    std::fwrite(file_version, 0x3, 1, fGFS);
+    std::fwrite(&be_numbers_of_file, 0x8, 1, fGFS);
+
+    std::fclose(fGFS);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
