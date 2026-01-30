@@ -4,7 +4,10 @@
 #include <Windows.h>
 #include <string.h>
 #include <string>
+#include <algorithm>
+#include <vector>
 #include "gfs.h"
+#include "gbs.h"
 
 //-----------------------
 
@@ -23,18 +26,56 @@ int main(int argc, char* argv[])
         std::cout << "There are no files" << '\n';
         return 0;
     }
+
+    bool is_ps3 = false;
+    std::vector<std::string> files;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.size() >= 2 && arg.front() == '"' && arg.back() == '"') {
+            arg = arg.substr(1, arg.size() - 2);
+        }
+        if (arg == "-ps3") {
+            is_ps3 = true;
+        }
+        else {
+            files.push_back(arg);
+        }
+    }
+
     GFSUnpacker GFSUnpack;
     GFSPacker GFSpack;
-    for (int i{ 1 }; i < argc; i++) {
-        std::filesystem::path fileread = argv[i];
+    for (const auto& file_path : files) {
+        std::filesystem::path fileread = file_path;
         std::cout << "File Read Path:" << fileread << '\n';
-        //GFS gfs(fileread);
         
-        if (fileread.extension() == "") {
+        std::string ext = fileread.extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+        if (ext == ".gfs") {
+            GFSUnpack(fileread);
+        }
+        else if (ext == ".gbs") {
+            try {
+                gbs::gbs_t gbs_file(fileread, is_ps3);
+                std::filesystem::path filewrite = fileread;
+                if (is_ps3) {
+                    filewrite.replace_filename(fileread.stem().string() + "_ps3.gbs");
+                }
+                else {
+                    filewrite.replace_filename(fileread.stem().string() + "_pc.gbs");
+                }
+                gbs_file.write(filewrite);
+                std::cout << "GBS processed: " << filewrite << "\n";
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Error processing GBS: " << e.what() << "\n";
+            }
+        }
+        else if (ext == "") {
             GFSpack(fileread);
         }
         else {
-            GFSUnpack(fileread);
+            std::cout << "Unsupported extension: " << ext << "\n";
         }
     } //for
 } //main

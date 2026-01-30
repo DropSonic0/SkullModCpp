@@ -3,42 +3,42 @@
 namespace reader {
     uint32_t BE_readBuffer_VectorUnChar_to_UnInt32(std::vector<unsigned char>& buffer, size_t Start) {
         return
-            (__int32)buffer[Start + 3] +
-            ((__int32)buffer[Start + 2] << 8) +
-            ((__int32)buffer[Start + 1] << 16) +
-            ((__int32)buffer[Start] << 24);
+            (uint32_t)buffer[Start + 3] +
+            ((uint32_t)buffer[Start + 2] << 8) +
+            ((uint32_t)buffer[Start + 1] << 16) +
+            ((uint32_t)buffer[Start] << 24);
     }
 
     uint32_t LE_readBuffer_VectorUnChar_to_UnInt32(std::vector<unsigned char>& buffer, size_t Start) {
         return
-            (__int32)buffer[Start] +
-            ((__int32)buffer[Start + 1] << 8) +
-            ((__int32)buffer[Start + 2] << 16) +
-            ((__int32)buffer[Start + 3] << 24);
+            (uint32_t)buffer[Start] +
+            ((uint32_t)buffer[Start + 1] << 8) +
+            ((uint32_t)buffer[Start + 2] << 16) +
+            ((uint32_t)buffer[Start + 3] << 24);
     }
 
     uint64_t BE_readBuffer_VectorUnChar_to_UnInt64(std::vector<unsigned char>& buffer, size_t Start) {
         return
-            (__int64)buffer[Start + 7] +
-            ((__int64)buffer[Start + 6] << 8) +
-            ((__int64)buffer[Start + 5] << 16) +
-            ((__int64)buffer[Start + 4] << 24) +
-            ((__int64)buffer[Start + 3] << 32) +
-            ((__int64)buffer[Start + 2] << 40) +
-            ((__int64)buffer[Start + 1] << 48) +
-            ((__int64)buffer[Start] << 56);
+            (uint64_t)buffer[Start + 7] +
+            ((uint64_t)buffer[Start + 6] << 8) +
+            ((uint64_t)buffer[Start + 5] << 16) +
+            ((uint64_t)buffer[Start + 4] << 24) +
+            ((uint64_t)buffer[Start + 3] << 32) +
+            ((uint64_t)buffer[Start + 2] << 40) +
+            ((uint64_t)buffer[Start + 1] << 48) +
+            ((uint64_t)buffer[Start] << 56);
     }
 
     uint64_t LE_readBuffer_VectorUnChar_to_UnInt64(std::vector<unsigned char>& buffer, size_t Start) {
         return
-            (__int64)buffer[Start] +
-            ((__int64)buffer[Start + 1] << 8) +
-            ((__int64)buffer[Start + 2] << 16) +
-            ((__int64)buffer[Start + 3] << 24) +
-            ((__int64)buffer[Start + 4] << 32) +
-            ((__int64)buffer[Start + 5] << 40) +
-            ((__int64)buffer[Start + 6] << 48) +
-            ((__int64)buffer[Start + 7] << 56);
+            (uint64_t)buffer[Start] +
+            ((uint64_t)buffer[Start + 1] << 8) +
+            ((uint64_t)buffer[Start + 2] << 16) +
+            ((uint64_t)buffer[Start + 3] << 24) +
+            ((uint64_t)buffer[Start + 4] << 32) +
+            ((uint64_t)buffer[Start + 5] << 40) +
+            ((uint64_t)buffer[Start + 6] << 48) +
+            ((uint64_t)buffer[Start + 7] << 56);
     }
     std::string readBuffer_VectorUnChar_to_String(
         const std::vector<unsigned char>& buffer, size_t Start, size_t SizeOfString) {

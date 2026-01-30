@@ -33,19 +33,19 @@ class gbs_t {
         class font_t;
         class char_t;
         class texture_t;
-        gbs_t(const fs::path pathtoread);
+    gbs_t(const fs::path pathtoread, bool is_ps3 = false);
         void write(fs::path const pathtowrite);
     private:
         void _read();
     public:
         class font_t {
         public:
-            font_t(std::vector<unsigned char>& buffer, size_t ptr);
+            font_t(std::vector<unsigned char>& buffer, size_t ptr, bool be = false);
         private:
-            void _read(std::vector<unsigned char>& buffer, size_t ptr);
+            void _read(std::vector<unsigned char>& buffer, size_t ptr, bool be);
         private:
-            std::string m_gfnt_lable;
-            uint32_t m_font_lenght;
+            std::string m_gfnt_label;
+            uint32_t m_font_length;
             uint32_t m_font_id;
             std::string m_font_name;
             uint32_t m_font_size;
@@ -57,8 +57,8 @@ class gbs_t {
             std::vector<char_t> m_chars;
             friend gbs_t merge(gbs_t& first_gbs, gbs_t& second_gbs, config config);
         public:
-            std::string gfnt_lable() const { return m_gfnt_lable; }
-            uint32_t font_lenght() const { return m_font_lenght; }
+            std::string gfnt_label() const { return m_gfnt_label; }
+            uint32_t font_length() const { return m_font_length; }
             uint32_t font_id() const { return m_font_id; }
             std::string font_name() const { return m_font_name; }
             uint32_t font_size() const { return m_font_size; }
@@ -69,14 +69,14 @@ class gbs_t {
             uint32_t chars_count() const { return m_chars_count; }
             std::vector<char_t> chars() const { return m_chars; }
         public:
-            size_t size() const { return m_font_lenght; }
+            size_t size() const { return m_font_length; }
         };
         class char_t {
         public:
-            char_t(std::vector <unsigned char>& file_buffer, size_t ptr_f);
+            char_t(std::vector <unsigned char>& file_buffer, size_t ptr_f, bool be = false);
             ~char_t() = default;
         private:
-            void _read(std::vector <unsigned char>& file_buffer, size_t ptr_f);
+            void _read(std::vector <unsigned char>& file_buffer, size_t ptr_f, bool be);
         private:
             std::string m_char_code;
             uint32_t m_is_image_glyph;
@@ -103,9 +103,9 @@ class gbs_t {
         };
         class texture_t {
         public:
-            texture_t(std::vector<unsigned char>& buffer, size_t ptr);
+            texture_t(std::vector<unsigned char>& buffer, size_t ptr, bool be = false);
         private:
-            void _read(std::vector<unsigned char>& buffer, size_t ptr);
+            void _read(std::vector<unsigned char>& buffer, size_t ptr, bool be);
         private:
             uint16_t m_id;
             uint16_t m_type;
@@ -119,6 +119,7 @@ class gbs_t {
             size_t size() const { return 0x11C; }
         };
     private:
+        bool m_is_ps3 = false;
         std::string m_gbsc_header = "CSGG";
         uint32_t m_file_size;
         std::string m_data_version;
@@ -135,6 +136,11 @@ class gbs_t {
         uint32_t m_messages_offset;
         std::vector<font_t> m_fonts;
         std::vector<texture_t> m_textures;
+        std::vector<unsigned char> m_sounds_raw;
+        std::vector<unsigned char> m_views_raw;
+        std::vector<unsigned char> m_messages_raw;
+        std::vector<unsigned char> m_tail_raw;
+        uint32_t m_footer = 0;
         friend gbs_t merge(gbs_t& first_gbs, gbs_t& second_gbs, config config);
     public:
         std::string gbsc_header() const { return m_gbsc_header; }
